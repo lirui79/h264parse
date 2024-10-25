@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 #include "header.h"
-#include "bs.h"
+#include "nalutil.h"
 
 typedef enum {
     Slice_Type_P = 0,

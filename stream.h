@@ -1,31 +1,23 @@
-//
-//  stream.h
-//  H264Analysis
-//
-//  Created by Jinmmer on 2018/5/16.
-//  Copyright © 2018年 Jinmmer. All rights reserved.
-//
 
-#ifndef stream_h
-#define stream_h
+#ifndef ___STREAM_FILE__H__
+#define ___STREAM_FILE__H__
+
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 
-extern uint8_t *file_buff;
 
-#define MAX_BUFFER_SIZE (50*1024*1024)
-#define TRACE 1
-
-#ifdef TRACE
-extern FILE *trace_fp;
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-// 读取h264文件，读取失败返回-1，否则返回文件大小
-int readAnnexbBitStreamFile(char *fp);
-void freeFilebuffer(void);
+unsigned long getStreamfileSize(const char *filename);
 
-void traceInput(char *traceString, uint32_t eleValue);
+unsigned long readStreambuffer(const char *filename, unsigned char *buffer, unsigned long bufSize);
 
-#endif /* stream_h */
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* ___STREAM_FILE__H__ */

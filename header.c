@@ -47,15 +47,15 @@ void processSliceHeader(bs_t *b)
  */
 void parse_first_three_element(bs_t *b)
 {
-    currentSlice->slice_header.first_mb_in_slice = bs_read_ue(b, "SH: first_mb_in_slice");
+    currentSlice->slice_header.first_mb_in_slice = bs_read_ue(b);
     
     // 因为slice_type值为0~9，0~4和5~9重合
-    int slice_type = bs_read_ue(b, "SH: slice_type");
+    int slice_type = bs_read_ue(b);
     if (slice_type > 4) {slice_type -= 5;}
     currentSlice->slice_header.slice_type = slice_type;
 	printf("mb_in_slice:slice_type %d:%d \n", currentSlice->slice_header.first_mb_in_slice, currentSlice->slice_header.slice_type);
     
-    currentSlice->slice_header.pic_parameter_set_id = bs_read_ue(b, "SH: pic_parameter_set_id");
+    currentSlice->slice_header.pic_parameter_set_id = bs_read_ue(b);
 }
 
 /**
@@ -67,35 +67,35 @@ void parse_rest_elememt_of_sliceHeader(bs_t *b)
     slice_header_t *slice_header = &currentSlice->slice_header;
     
     if (active_sps->separate_colour_plane_flag == 1) {
-        slice_header->colour_plane_id = bs_read_u(b, 2, "SH: colour_plane_id");
+        slice_header->colour_plane_id = bs_read_u(b, 2);
     }else {
         slice_header->colour_plane_id = COLOR_PLANE_Y;
     }
     
-    slice_header->frame_num = bs_read_u(b, active_sps->log2_max_frame_num_minus4 + 4, "SH: frame_num");
+    slice_header->frame_num = bs_read_u(b, active_sps->log2_max_frame_num_minus4 + 4);
     
     // FIXME: frame_num gap processing
     
     if (active_sps->frame_mbs_only_flag) {
         slice_header->field_pic_flag = 0;
     } else {
-        slice_header->field_pic_flag = bs_read_u(b, 1, "SH: field_pic_flag");
+        slice_header->field_pic_flag = bs_read_u(b, 1);
         if (slice_header->field_pic_flag) {
-            slice_header->bottom_field_flag = bs_read_u(b, 1, "SH: bottom_field_flag");
+            slice_header->bottom_field_flag = bs_read_u(b, 1);
         }else {
             slice_header->bottom_field_flag = 0;
         }
     }
     
     if (currentSlice->idr_flag) {
-        slice_header->idr_pic_id = bs_read_ue(b, "SH: idr_pic_id");
+        slice_header->idr_pic_id = bs_read_ue(b);
     }
     
     if (active_sps->pic_order_cnt_type == 0)
     {
-        slice_header->pic_order_cnt_lsb = bs_read_u(b, active_sps->log2_max_pic_order_cnt_lsb_minus4 + 4, "SH: pic_order_cnt_lsb");
+        slice_header->pic_order_cnt_lsb = bs_read_u(b, active_sps->log2_max_pic_order_cnt_lsb_minus4 + 4);
         if (active_pps->bottom_field_pic_order_in_frame_present_flag && !slice_header->field_pic_flag) {
-            slice_header->delta_pic_order_cnt_bottom = bs_read_se(b, "SH: delta_pic_order_cnt_bottom");
+            slice_header->delta_pic_order_cnt_bottom = bs_read_se(b);
         }else {
             slice_header->delta_pic_order_cnt_bottom = 0;
         }
@@ -104,10 +104,10 @@ void parse_rest_elememt_of_sliceHeader(bs_t *b)
     if (active_sps->pic_order_cnt_type == 1 &&
         !active_sps->delta_pic_order_always_zero_flag)
     {
-        slice_header->delta_pic_order_cnt[0] = bs_read_se(b, "SH: delta_pic_order_cnt[0]");
+        slice_header->delta_pic_order_cnt[0] = bs_read_se(b);
         if (active_pps->bottom_field_pic_order_in_frame_present_flag &&
             !slice_header->field_pic_flag) {
-            slice_header->delta_pic_order_cnt[1] = bs_read_se(b, "SH: delta_pic_order_cnt[1]");
+            slice_header->delta_pic_order_cnt[1] = bs_read_se(b);
         }else {
             slice_header->delta_pic_order_cnt[1] = 0;
         }
@@ -117,24 +117,24 @@ void parse_rest_elememt_of_sliceHeader(bs_t *b)
     }
     
     if (active_pps->redundant_pic_cnt_present_flag) {
-        slice_header->redundant_pic_cnt = bs_read_ue(b, "SH: redundant_pic_cnt");
+        slice_header->redundant_pic_cnt = bs_read_ue(b);
     }
     
     if (slice_header->slice_type == Slice_Type_B) {
-        slice_header->direct_spatial_mv_pred_flag = bs_read_u(b, 1, "SH: direct_spatial_mv_pred_flag");
+        slice_header->direct_spatial_mv_pred_flag = bs_read_u(b, 1);
     }
     
     if (slice_header->slice_type == Slice_Type_P ||
              slice_header->slice_type == Slice_Type_SP ||
              slice_header->slice_type == Slice_Type_B)
     {
-        slice_header->num_ref_idx_active_override_flag = bs_read_u(b, 1, "SH: num_ref_idx_active_override_flag");
+        slice_header->num_ref_idx_active_override_flag = bs_read_u(b, 1);
         if (slice_header->num_ref_idx_active_override_flag)
         {
-            slice_header->num_ref_idx_l0_active_minus1 = bs_read_ue(b, "SH: num_ref_idx_l0_active_minus1");
+            slice_header->num_ref_idx_l0_active_minus1 = bs_read_ue(b);
             if (slice_header->slice_type == Slice_Type_B)
             {
-                slice_header->num_ref_idx_l1_active_minus1 = bs_read_ue(b, "SH: num_ref_idx_l1_active_minus1");
+                slice_header->num_ref_idx_l1_active_minus1 = bs_read_ue(b);
             }
         }
     }
@@ -156,25 +156,25 @@ void parse_rest_elememt_of_sliceHeader(bs_t *b)
     if (active_pps->entropy_coding_mode_flag &&
         slice_header->slice_type != Slice_Type_I &&
         slice_header->slice_type != Slice_Type_SI) {
-        slice_header->cabac_init_idc = bs_read_ue(b, "SH: cabac_init_idc");
+        slice_header->cabac_init_idc = bs_read_ue(b);
     }else {
         slice_header->cabac_init_idc = 0;
     }
     
-    slice_header->slice_qp_delta = bs_read_se(b, "SH: slice_qp_delta");
+    slice_header->slice_qp_delta = bs_read_se(b);
     if (slice_header->slice_type == Slice_Type_SP ||
         slice_header->slice_type == Slice_Type_SI) {
         if (slice_header->slice_type == Slice_Type_SP) {
-            slice_header->sp_for_switch_flag = bs_read_u(b, 1, "SH: sp_for_switch_flag");
+            slice_header->sp_for_switch_flag = bs_read_u(b, 1);
         }
-        slice_header->slice_qs_delta = bs_read_se(b, "SH: slice_qs_delta");
+        slice_header->slice_qs_delta = bs_read_se(b);
     }
     
     if (active_pps->deblocking_filter_control_present_flag) {
-        slice_header->disable_deblocking_filter_idc = bs_read_ue(b, "SH: disable_deblocking_filter_idc");
+        slice_header->disable_deblocking_filter_idc = bs_read_ue(b);
         if (slice_header->disable_deblocking_filter_idc != 1) {
-            slice_header->slice_alpha_c0_offset_div2 = bs_read_se(b, "SH: slice_alpha_c0_offset_div2");
-            slice_header->slice_beta_offset_div2 = bs_read_se(b, "SH: slice_beta_offset_div2");
+            slice_header->slice_alpha_c0_offset_div2 = bs_read_se(b);
+            slice_header->slice_beta_offset_div2 = bs_read_se(b);
         }else {
             // 设置默认值
             slice_header->slice_alpha_c0_offset_div2 = 0;
@@ -201,7 +201,7 @@ void parse_rest_elememt_of_sliceHeader(bs_t *b)
         // 去计算Ceil( Log2( PicSizeInMapUnits ÷ SliceGroupChangeRate + 1 ) )
         bit_len = calculateCeilLog2(bit_len + 1);
         
-        slice_header->slice_group_change_cycle = bs_read_u(b, bit_len, "SH: slice_group_change_cycle");
+        slice_header->slice_group_change_cycle = bs_read_u(b, bit_len);
     }
 }
 
@@ -219,15 +219,15 @@ void parse_ref_pic_list_modification(bs_t *b)
     
     if (currentSlice->slice_header.slice_type != Slice_Type_I &&
         currentSlice->slice_header.slice_type != Slice_Type_SI) {
-        rplm->ref_pic_list_modification_flag_l0 = bs_read_u(b, 1, "SH: ref_pic_list_modification_flag_l0");
+        rplm->ref_pic_list_modification_flag_l0 = bs_read_u(b, 1);
         if (rplm->ref_pic_list_modification_flag_l0) {
             i = 0;
             do {
-                val = rplm->modification_of_pic_nums_idc_lo[i] = bs_read_ue(b, "SH: modification_of_pic_nums_idc_lo");
+                val = rplm->modification_of_pic_nums_idc_lo[i] = bs_read_ue(b);
                 if (val == 0 || val == 1) {
-                    rplm->abs_diff_pic_num_minus1_lo[i] = bs_read_ue(b, "SH: abs_diff_pic_num_minus1_lo");
+                    rplm->abs_diff_pic_num_minus1_lo[i] = bs_read_ue(b);
                 }else if (val == 2) {
-                    rplm->long_term_pic_num_lo[i] = bs_read_ue(b, "SH: long_term_pic_num_lo");
+                    rplm->long_term_pic_num_lo[i] = bs_read_ue(b);
                 }
                 i++;
             } while (val != 3);
@@ -235,15 +235,15 @@ void parse_ref_pic_list_modification(bs_t *b)
     }
     
     if (currentSlice->slice_header.slice_type == Slice_Type_B) {
-        rplm->ref_pic_list_modification_flag_l1 = bs_read_u(b, 1, "SH: ref_pic_list_modification_flag_l1");
+        rplm->ref_pic_list_modification_flag_l1 = bs_read_u(b, 1);
         if (rplm->ref_pic_list_modification_flag_l1) {
             i = 0;
             do {
-                val = rplm->modification_of_pic_nums_idc_l1[i] = bs_read_ue(b, "SH: modification_of_pic_nums_idc_l1");
+                val = rplm->modification_of_pic_nums_idc_l1[i] = bs_read_ue(b);
                 if (val == 0 || val == 1) {
-                    rplm->abs_diff_pic_num_minus1_l1[i] = bs_read_ue(b, "SH: abs_diff_pic_num_minus1_l1");
+                    rplm->abs_diff_pic_num_minus1_l1[i] = bs_read_ue(b);
                 }else if (val == 2) {
-                    rplm->long_term_pic_num_l1[i] = bs_read_ue(b, "SH: long_term_pic_num_l1");
+                    rplm->long_term_pic_num_l1[i] = bs_read_ue(b);
                 }
                 i++;
             } while (val != 3);
@@ -310,30 +310,30 @@ void parse_pred_weight_table(bs_t *b)
 {
     pred_weight_table_t *pw_table = &currentSlice->slice_header.pred_weight_table;
     
-    pw_table->luma_log2_weight_denom = bs_read_ue(b, "SH: luma_log2_weight_denom");
+    pw_table->luma_log2_weight_denom = bs_read_ue(b);
     if (active_sps->chroma_format_idc != 0) {
-        pw_table->chroma_log2_weight_denom = bs_read_ue(b, "SH: chroma_log2_weight_denom");
+        pw_table->chroma_log2_weight_denom = bs_read_ue(b);
     }
     
     for (int i = 0; i <= currentSlice->slice_header.num_ref_idx_l0_active_minus1; i++) {
-        pw_table->luma_weight_l0_flag = bs_read_u(b, 1, "SH: luma_weight_l0_flag");
+        pw_table->luma_weight_l0_flag = bs_read_u(b, 1);
         
         // 参考7.4.3.2语义，对pw_table->luma_weight_l0_flag等于0时做如下修改
         if (pw_table->luma_weight_l0_flag) {
-            pw_table->luma_weight_l0[i] = bs_read_se(b, "SH: luma_weight_l0");
-            pw_table->luma_offset_l0[i] = bs_read_se(b, "SH: luma_offset_l0");
+            pw_table->luma_weight_l0[i] = bs_read_se(b);
+            pw_table->luma_offset_l0[i] = bs_read_se(b);
         }else {
             pw_table->luma_weight_l0[i] = 1 << pw_table->luma_log2_weight_denom;
             pw_table->luma_offset_l0[i] = 0;
         }
         
         if (active_sps->chroma_format_idc != 0) {
-            pw_table->chroma_weight_l0_flag = bs_read_u(b, 1, "SH: chroma_weight_l0_flag");
+            pw_table->chroma_weight_l0_flag = bs_read_u(b, 1);
             // 参考7.4.3.2语义，对pw_table->chroma_weight_l0_flag等于0时做如下修改
             for (int j = 0; j < 2; j++) {
                 if (pw_table->chroma_weight_l0_flag) {
-                    pw_table->chroma_weight_l0[i][j] = bs_read_se(b, "SH: chroma_weight_l0");
-                    pw_table->chroma_offset_l0[i][j] = bs_read_se(b, "SH: chroma_offset_l0");
+                    pw_table->chroma_weight_l0[i][j] = bs_read_se(b);
+                    pw_table->chroma_offset_l0[i][j] = bs_read_se(b);
                 }else {
                     pw_table->chroma_weight_l0[i][j] = 1 << pw_table->chroma_log2_weight_denom;
                     pw_table->chroma_offset_l0[i][j] = 0;
@@ -344,24 +344,24 @@ void parse_pred_weight_table(bs_t *b)
     
     if (currentSlice->slice_header.slice_type == Slice_Type_B) {
         for (int i = 0; i <= currentSlice->slice_header.num_ref_idx_l1_active_minus1; i++) {
-            pw_table->luma_weight_l1_flag = bs_read_u(b, 1, "SH: luma_weight_l1_flag");
+            pw_table->luma_weight_l1_flag = bs_read_u(b, 1);
             
             // 参考7.4.3.2语义，对pw_table->luma_weight_l1_flag等于0时做如下修改
             if (pw_table->luma_weight_l1_flag) {
-                pw_table->luma_weight_l1[i] = bs_read_se(b, "SH: luma_weight_l1");
-                pw_table->luma_offset_l1[i] = bs_read_se(b, "SH: luma_offset_l1");
+                pw_table->luma_weight_l1[i] = bs_read_se(b);
+                pw_table->luma_offset_l1[i] = bs_read_se(b);
             }else {
                 pw_table->luma_weight_l1[i] = 1 << pw_table->luma_log2_weight_denom;
                 pw_table->luma_offset_l1[i] = 0;
             }
             
             if (active_sps->chroma_format_idc != 0) {
-                pw_table->chroma_weight_l1_flag = bs_read_u(b, 1, "SH: chroma_weight_l1_flag");
+                pw_table->chroma_weight_l1_flag = bs_read_u(b, 1);
                 // 参考7.4.3.2语义，对pw_table->chroma_weight_l1_flag等于0时做如下修改
                 for (int j = 0; j < 2; j++) {
                     if (pw_table->chroma_weight_l1_flag) {
-                        pw_table->chroma_weight_l1[i][j] = bs_read_se(b, "SH:   chroma_weight_l1");
-                        pw_table->chroma_offset_l1[i][j] = bs_read_se(b, "SH: chroma_offset_l1");
+                        pw_table->chroma_weight_l1[i][j] = bs_read_se(b);
+                        pw_table->chroma_offset_l1[i][j] = bs_read_se(b);
                     }else {
                         pw_table->chroma_weight_l1[i][j] = 1 << pw_table->chroma_log2_weight_denom;
                         pw_table->chroma_offset_l1[i][j] = 0;
@@ -382,25 +382,25 @@ void parse_dec_ref_pic_marking(bs_t *b)
     int i, val;
 
     if (currentSlice->idr_flag) {
-        drp_marking->no_output_of_prior_pics_flag = bs_read_u(b, 1, "SH: no_output_of_prior_pics_flag");
-        drp_marking->long_term_reference_flag = bs_read_u(b, 1, "SH: long_term_reference_flag");
+        drp_marking->no_output_of_prior_pics_flag = bs_read_u(b, 1);
+        drp_marking->long_term_reference_flag = bs_read_u(b, 1);
     }else {
-        drp_marking->adaptive_ref_pic_marking_mode_flag = bs_read_u(b, 1, "SH: adaptive_ref_pic_marking_mode_flag");
+        drp_marking->adaptive_ref_pic_marking_mode_flag = bs_read_u(b, 1);
         if (drp_marking->adaptive_ref_pic_marking_mode_flag) {
             i = 0;
             do {
-                val = drp_marking->memory_management_control_operation[i] = bs_read_ue(b, "SH: memory_management_control_operation");
+                val = drp_marking->memory_management_control_operation[i] = bs_read_ue(b);
                 if (val == 1 || val == 3) {
-                    drp_marking->difference_of_pic_nums_minus1[i] = bs_read_ue(b, "SH: difference_of_pic_nums_minus1");
+                    drp_marking->difference_of_pic_nums_minus1[i] = bs_read_ue(b);
                 }
                 if (val == 2) {
-                    drp_marking->long_term_pic_num[i] = bs_read_ue(b, "SH: long_term_pic_num");
+                    drp_marking->long_term_pic_num[i] = bs_read_ue(b);
                 }
                 if (val == 3 || val == 6) {
-                    drp_marking->long_term_frame_idx[i] = bs_read_ue(b, "SH: long_term_frame_idx");
+                    drp_marking->long_term_frame_idx[i] = bs_read_ue(b);
                 }
                 if (val == 4) {
-                    drp_marking->max_long_term_frame_idx_plus1[i] = bs_read_ue(b, "SH: max_long_term_frame_idx_plus1");
+                    drp_marking->max_long_term_frame_idx_plus1[i] = bs_read_ue(b);
                 }
                 i++;
             } while (val != 0);

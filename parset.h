@@ -10,7 +10,7 @@
 #define parset_h
 
 #include <stdio.h>
-#include "bs.h"
+#include "nalutil.h"
 
 #define MAX_CPB_CNT   32
 

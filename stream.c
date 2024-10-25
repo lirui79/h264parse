@@ -8,60 +8,26 @@
 
 #include "stream.h"
 
-uint8_t *file_buff = NULL;
-
-#ifdef TRACE
-FILE *trace_fp = NULL;
-#endif
-
-// 读取h264文件，读取失败返回-1，否则返回文件大小
-int readAnnexbBitStreamFile(char *fp)
-{
-    FILE *fp_h264 = fopen(fp, "rb");
-    if (fp_h264 == NULL) {
-        printf("打开h264文件失败\n");
-        return -1;
-    }
-    
-    file_buff = (uint8_t *)malloc(MAX_BUFFER_SIZE);
-    int file_size = (int)fread(file_buff, sizeof(uint8_t), MAX_BUFFER_SIZE, fp_h264);
-    fclose(fp_h264);
-    
-#if TRACE
-    trace_fp = fopen("trace_dec.txt", "w");
-    if (trace_fp == NULL) {
-        printf("打开trace_dec.txt文件失败\n");
-        return -1;
-    }
-#endif
-    
-    return file_size;
+unsigned long getStreamfileSize(const char *filename) {
+    unsigned long fileSize = 0;
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL)
+        return 0;
+    fpos_t fpos; //当前位置
+    fgetpos(fp, &fpos); //获取当前位置
+    fseek(fp, 0, SEEK_END);
+    fileSize = ftell(fp);
+    fsetpos(fp,&fpos); //恢复之前的位置
+    fclose(fp);
+    return fileSize;
 }
 
-void freeFilebuffer(void)
-{
-    free(file_buff);
-#if TRACE
-    fclose(trace_fp);
-#endif
-}
-
-void traceInput(char *traceString, uint32_t eleValue)
-{
-    int inputCharsCount = 0;
-#if TRACE
-    putc('@', trace_fp);
-    
-    // 1.录入traceString
-    inputCharsCount += fprintf(trace_fp, " %s", traceString);
-    while(inputCharsCount++ < 55) {
-        putc(' ',trace_fp);
-    }
-    
-    // 2.录入eleValue
-    fprintf(trace_fp, "  (%3d)\n", eleValue);
-    
-    // 3.将缓冲区的内容输出到文件中
-    fflush(trace_fp);
-#endif
+unsigned long readStreambuffer(const char *filename, unsigned char *buffer, unsigned long bufSize) {
+    unsigned long readSize = 0;
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL)
+        return 0;
+    readSize = fread(buffer, 1, bufSize, fp);
+    fclose(fp);
+    return readSize;
 }
