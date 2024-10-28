@@ -1,17 +1,8 @@
-//
-//  decode.c
-//  H264Analysis
-//
-//  Created by Jinmmer on 2018/5/16.
-//  Copyright © 2018年 Jinmmer. All rights reserved.
-//
 
 #include <stdio.h>
 #include "nalu.h"
 #include "stream.h"
 #include "slice.h"
-
-slice_t *currentSlice; // 当前正在解码的slice
 
 int main(int argc, const char * argv[]) {
     if(argc < 2) {
@@ -27,8 +18,10 @@ int main(int argc, const char * argv[]) {
     // 1. 开辟nalu_t保存nalu_header和SODB
     nalu_t *nalu = allocNalu();
     
-    currentSlice = allocSlice();
-    
+    slice_t *slice = allocSlice();
+    sps_t   *sps   = allocSPS();
+    pps_t   *pps   = allocPPS();
+
     int nalu_i = 0;
     int startPos = 0;  // 当前找到的nalu起始位置
     
@@ -40,13 +33,15 @@ int main(int argc, const char * argv[]) {
             break;
         
         // 读取/解析 nalu
-        ParseNalu(nalu);
+        ParseNalu(nalu, sps, pps, slice);
         
         ++nalu_i;
         startPos += nalu->len;
     }
     
-    freeSlice(currentSlice);
+    freeSPS(sps);
+    freePPS(pps);
+    freeSlice(slice);
     freeNalu(nalu);
    
     return 0;

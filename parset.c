@@ -1,59 +1,22 @@
-//
-//  parset.c
-//  H264Analysis
-//
-//  Created by Jinmmer on 2018/5/15.
-//  Copyright © 2018年 Jinmmer. All rights reserved.
-//
-
 #include "parset.h"
 #include "frame.h"
 #include "nalu.h"
 
 // 因为sps_id的取值范围为[0,31]，因此数组容量最大为32，详见7.4.2.1
-static sps_t Sequence_Parameters_Set_Array[32];
+//static sps_t Sequence_Parameters_Set_Array[32];
 // 因为pps_id的取值范围为[0,255]，因此数组容量最大为256，详见7.4.2.2
-static pps_t Picture_Parameters_Set_Array[256];
+//static pps_t Picture_Parameters_Set_Array[256];
 
-sps_t *active_sps = NULL;  // 已经激活的sps
-pps_t *active_pps = NULL;  // 已经激活的pps
 
-#pragma mark - 函数声明
-void parse_sps_syntax_element(sps_t *sps, bs_t *b);
-void save_sps_as_available(sps_t *sps);
-void scaling_list(int *scalingList, int sizeOfScalingList, int *useDefaultScalingMatrixFlag, bs_t *b);
-void parse_vui_parameters(sps_t *sps, bs_t *b);
-void parse_vui_hrd_parameters(hrd_parameters_t *hrd, bs_t *b);
-
-void parse_pps_syntax_element(pps_t *pps, bs_t *b);
-void save_pps_as_available(pps_t *pps);
-
-#pragma mark - 函数实现
-#pragma mark 解析sps句法元素
-
-/**
- 处理SPS，包含两步：
- 先解析、后保存
- */
-void processSPS(bs_t *b)
-{
-    sps_t *sps = allocSPS();
-    // 0.解析
-    parse_sps_syntax_element(sps, b);
-    // 1.保存
-    save_sps_as_available(sps);
-    
-    freeSPS(sps);
-    
-    printf("SPS->pic_width_in_mbs_minus1: %d\n", sps->pic_width_in_mbs_minus1);
-}
+void scaling_list(bs_t *b, int *scalingList, int sizeOfScalingList, int *useDefaultScalingMatrixFlag);
+void parse_vui_parameters(bs_t *b, sps_t *sps);
+void parse_vui_hrd_parameters(bs_t *b, hrd_parameters_t *hrd);
 
 /**
  解析sps句法元素
  [h264协议文档位置]：7.3.2.1.1 Sequence parameter set data syntax
  */
-void parse_sps_syntax_element(sps_t *sps, bs_t *b)
-{
+int processSPS(bs_t *b, sps_t *sps) {
     sps->profile_idc = bs_read_u(b, 8);
     sps->constraint_set0_flag = bs_read_u(b, 1);
     sps->constraint_set1_flag = bs_read_u(b, 1);
@@ -66,7 +29,10 @@ void parse_sps_syntax_element(sps_t *sps, bs_t *b)
     
     sps->seq_parameter_set_id = bs_read_ue(b);
     
-    if (sps->profile_idc == 100 || sps->profile_idc == 110 || sps->profile_idc == 122 || sps->profile_idc == 244 || sps->profile_idc == 44 || sps->profile_idc == 83 || sps->profile_idc == 86 || sps->profile_idc == 118 || sps->profile_idc == 128 || sps->profile_idc == 138 || sps->profile_idc == 139 || sps->profile_idc == 134 || sps->profile_idc == 135) {
+    if (sps->profile_idc == 100 || sps->profile_idc == 110 || sps->profile_idc == 122 || 
+        sps->profile_idc == 244 || sps->profile_idc == 44 || sps->profile_idc == 83 || 
+        sps->profile_idc == 86 || sps->profile_idc == 118 || sps->profile_idc == 128 || 
+        sps->profile_idc == 138 || sps->profile_idc == 139 || sps->profile_idc == 134 || sps->profile_idc == 135) {
         
         sps->chroma_format_idc = bs_read_ue(b);
         if (sps->chroma_format_idc == YUV_4_4_4) {
@@ -83,9 +49,9 @@ void parse_sps_syntax_element(sps_t *sps, bs_t *b)
                 sps->seq_scaling_list_present_flag[i] = bs_read_u(b, 1);
                 if (sps->seq_scaling_list_present_flag[i]) {
                     if (i < 6) {
-                        scaling_list(sps->ScalingList4x4[i], 16, &sps->UseDefaultScalingMatrix4x4Flag[i], b);
+                        scaling_list(b, sps->ScalingList4x4[i], 16, &sps->UseDefaultScalingMatrix4x4Flag[i]);
                     }else {
-                        scaling_list(sps->ScalingList8x8[i-6], 64, &sps->UseDefaultScalingMatrix8x8Flag[i-6], b);
+                        scaling_list(b, sps->ScalingList8x8[i-6], 64, &sps->UseDefaultScalingMatrix8x8Flag[i-6]);
                     }
                 }
             }
@@ -128,16 +94,18 @@ void parse_sps_syntax_element(sps_t *sps, bs_t *b)
     
     sps->vui_parameters_present_flag = bs_read_u(b, 1);
     if (sps->vui_parameters_present_flag) {
-        parse_vui_parameters(sps, b);
+        parse_vui_parameters(b, sps);
     }
+
+    printf("SPS->pic_width_in_mbs_minus1: %d\n", sps->pic_width_in_mbs_minus1);
+    return 0;
 }
 
 /**
  scaling_list函数实现
  [h264协议文档位置]：7.3.2.1.1 Scaling list syntax
  */
-void scaling_list(int *scalingList, int sizeOfScalingList, int *useDefaultScalingMatrixFlag, bs_t *b)
-{
+void scaling_list(bs_t *b, int *scalingList, int sizeOfScalingList, int *useDefaultScalingMatrixFlag) {
     int deltaScale;
     int lastScale = 8;
     int nextScale = 8;
@@ -159,8 +127,7 @@ void scaling_list(int *scalingList, int sizeOfScalingList, int *useDefaultScalin
  解析vui_parameters()句法元素
  [h264协议文档位置]：Annex E.1.1
  */
-void parse_vui_parameters(sps_t *sps, bs_t *b)
-{
+void parse_vui_parameters(bs_t *b, sps_t *sps) {
     sps->vui_parameters.aspect_ratio_info_present_flag = bs_read_u(b, 1);
     if (sps->vui_parameters.aspect_ratio_info_present_flag) {
         sps->vui_parameters.aspect_ratio_idc = bs_read_u(b, 8);
@@ -203,12 +170,12 @@ void parse_vui_parameters(sps_t *sps, bs_t *b)
     
     sps->vui_parameters.nal_hrd_parameters_present_flag = bs_read_u(b, 1);
     if (sps->vui_parameters.nal_hrd_parameters_present_flag) {
-        parse_vui_hrd_parameters(&sps->vui_parameters.nal_hrd_parameters, b);
+        parse_vui_hrd_parameters(b, &sps->vui_parameters.nal_hrd_parameters);
     }
     
     sps->vui_parameters.vcl_hrd_parameters_present_flag = bs_read_u(b, 1);
     if (sps->vui_parameters.vcl_hrd_parameters_present_flag) {
-        parse_vui_hrd_parameters(&sps->vui_parameters.vcl_hrd_parameters, b);
+        parse_vui_hrd_parameters(b, &sps->vui_parameters.vcl_hrd_parameters);
     }
     
     if (sps->vui_parameters.nal_hrd_parameters_present_flag ||
@@ -233,8 +200,7 @@ void parse_vui_parameters(sps_t *sps, bs_t *b)
  解析hrd_parameters()句法元素
  [h264协议文档位置]：Annex E.1.2
  */
-void parse_vui_hrd_parameters(hrd_parameters_t *hrd, bs_t *b)
-{
+void parse_vui_hrd_parameters(bs_t *b, hrd_parameters_t *hrd) {
     hrd->cpb_cnt_minus1 = bs_read_ue(b);
     hrd->bit_rate_scale = bs_read_u(b, 4);
     hrd->cpb_size_scale = bs_read_u(b, 4);
@@ -251,28 +217,11 @@ void parse_vui_hrd_parameters(hrd_parameters_t *hrd, bs_t *b)
     hrd->time_offset_length = bs_read_u(b, 5);
 }
 
-#pragma mark 解析pps句法元素
-/**
- 处理PPS，包含两步：
- 先解析、后保存
- */
-void processPPS(bs_t *b)
-{
-    pps_t *pps = allocPPS();
-    // 0.解析
-    parse_pps_syntax_element(pps, b);
-    // 1.保存
-    save_pps_as_available(pps);
-    
-    freePPS(pps);
-}
-
 /**
  解析pps句法元素
  [h264协议文档位置]：7.3.2.2 Picture parameter set RBSP syntax
  */
-void parse_pps_syntax_element(pps_t *pps, bs_t *b)
-{
+int  processPPS(bs_t *b, sps_t *sps, pps_t *pps) {
     // 解析slice_group_id[]需用的比特个数
     int bitsNumberOfEachSliceGroupID;
     
@@ -349,7 +298,7 @@ void parse_pps_syntax_element(pps_t *pps, bs_t *b)
         pps->transform_8x8_mode_flag = bs_read_u(b, 1);
         pps->pic_scaling_matrix_present_flag = bs_read_u(b, 1);
         if (pps->pic_scaling_matrix_present_flag) {
-            int chroma_format_idc = Sequence_Parameters_Set_Array[pps->seq_parameter_set_id].chroma_format_idc;
+            int chroma_format_idc = sps->chroma_format_idc;//Sequence_Parameters_Set_Array[pps->seq_parameter_set_id].chroma_format_idc;
             int scalingListCycle = 6 + ((chroma_format_idc != YUV_4_4_4) ? 2 : 6) * pps->transform_8x8_mode_flag;
             for (int i = 0; i < scalingListCycle; i++) {
                 pps->pic_scaling_list_present_flag[i] = bs_read_u(b, 1);
@@ -366,13 +315,16 @@ void parse_pps_syntax_element(pps_t *pps, bs_t *b)
     }else {
         pps->second_chroma_qp_index_offset = pps->chroma_qp_index_offset;
     }
+    
+    return 0;
 }
 
-void save_sps_as_available(sps_t *sps)
-{
-    memcpy (&Sequence_Parameters_Set_Array[sps->seq_parameter_set_id], sps, sizeof (sps_t));
-}
+//void save_sps_as_available(sps_t *sps)
+//{
+//    memcpy (&Sequence_Parameters_Set_Array[sps->seq_parameter_set_id], sps, sizeof (sps_t));
+//}
 
+/*
 void save_pps_as_available(pps_t *pps)
 {
     // 2.更新同一个pps_id对应的pps时再释放
@@ -386,23 +338,24 @@ void save_pps_as_available(pps_t *pps)
     // 1.不释放由pps->slice_group_id指向的内存，交由Picture_Parameters_Set_Array[pps->pps_id]使用
     Picture_Parameters_Set_Array[pps->pic_parameter_set_id].slice_group_id = pps->slice_group_id;
     pps->slice_group_id = NULL;
-}
+}//*/
 
-#pragma mark - 激活参数集
+/*
 void activeParameterSet(int pps_id)
 {
     active_pps = &Picture_Parameters_Set_Array[pps_id];
     active_sps = &Sequence_Parameters_Set_Array[active_pps->seq_parameter_set_id];
-}
+}//*/
 
 // 初始化sps结构体
 sps_t *allocSPS(void)
 {
-    sps_t *sps = calloc(1, sizeof(sps_t));
+    sps_t *sps = (sps_t*) malloc(sizeof(sps_t));
     if (sps == NULL) {
         fprintf(stderr, "%s\n", "Alloc SPS Error");
-        exit(-1);
+        return NULL;
     }
+    memset(sps, 0, sizeof(sps_t));
     return sps;
 }
 
@@ -415,11 +368,12 @@ void freeSPS(sps_t *sps)
 // 初始化pps结构体
 pps_t *allocPPS(void)
 {
-    pps_t *pps = calloc(1, sizeof(pps_t));
+    pps_t *pps = (pps_t*) malloc(sizeof(pps_t));
     if (pps == NULL) {
         fprintf(stderr, "%s\n", "Alloc PPS Error");
-        exit(-1);
+        return NULL;
     }
+    memset(pps, 0, sizeof(pps_t));
     pps->slice_group_id = NULL;
     return pps;
 }

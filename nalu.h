@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "nalutil.h"
+#include "slice.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,7 +51,7 @@ unsigned int FindNaluPos(uint8_t *rawbs, unsigned int size, unsigned int startPo
 
 unsigned int FindNalu(uint8_t *rawbs, unsigned int size, unsigned int startPos, nalu_t *nalu);
 
-unsigned int ParseNalu(nalu_t *nalu);
+unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice);
 
 unsigned int ConverNaluToRbsp(const uint8_t *rawbs, unsigned int size, uint8_t* rbbuf, unsigned int* rbsize);
 
@@ -58,11 +59,6 @@ unsigned int ConverRbspToSodb(nalu_t *nalu);
 
 // 在rbsp_trailing_bits()之前是否有更多数据
 unsigned int MoreRbspData(bs_t *b);
-
-
-
-int more_rbsp_data(bs_t *b);
-
 
 nalu_t *allocNalu();
 

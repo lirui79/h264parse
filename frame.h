@@ -6,8 +6,8 @@
 //  Copyright © 2018年 Jinmmer. All rights reserved.
 //
 
-#ifndef frame_h
-#define frame_h
+#ifndef __FRAME_H_
+#define __FRAME_H_
 
 #include <stdio.h>
 
@@ -31,4 +31,4 @@ typedef enum
     COLOR_PLANE_R = 2
 } Color_Plane;
 
-#endif /* frame_h */
+#endif /* __FRAME_H_ */

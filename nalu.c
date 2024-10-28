@@ -1,10 +1,3 @@
-//
-//  nalu.c
-//  H264Analysis
-//
-//  Created by Jinmmer on 2018/5/16.
-//  Copyright © 2018年 Jinmmer. All rights reserved.
-//
 
 #include "nalu.h"
 #include <assert.h>
@@ -182,9 +175,10 @@ unsigned int MoreRbspData(bs_t *b)
  @see 7.3.1 NAL unit syntax
  @see 7.4.1 NAL unit semantics
  */
-unsigned int ParseNalu(nalu_t *nalu) {
+unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice) {
     uint8_t* buffer = NULL;
     unsigned int bufSize = nalu->len;
+
     buffer = malloc(bufSize);
     // 1.去除nalu中的emulation_prevention_three_byte：0x03
     ConverNaluToRbsp(nalu->buf, nalu->len, buffer, &bufSize);
@@ -206,20 +200,20 @@ unsigned int ParseNalu(nalu_t *nalu) {
     {
         case H264_NAL_SPS:
             nalu->len = ConverRbspToSodb(nalu);
-            processSPS(bs);
+            processSPS(bs, sps);
             break;
             
         case H264_NAL_PPS:
             nalu->len = ConverRbspToSodb(nalu);
-            processPPS(bs);
+            processPPS(bs, sps, pps);
             break;
             
         case H264_NAL_SLICE:
         case H264_NAL_IDR_SLICE:
-            currentSlice->idr_flag = (nalu->nal_unit_type == H264_NAL_IDR_SLICE);
-            currentSlice->nal_ref_idc = nalu->nal_ref_idc;
+            slice->idr_flag = (nalu->nal_unit_type == H264_NAL_IDR_SLICE);
+            slice->nal_ref_idc = nalu->nal_ref_idc;
             nalu->len = ConverRbspToSodb(nalu);
-            processSlice(bs);
+            processSlice(bs, sps, pps, slice);
             break;
             
         case H264_NAL_DPA:
@@ -239,6 +233,7 @@ unsigned int ParseNalu(nalu_t *nalu) {
     }
     free(buffer);
     bs_free(bs);
+    return 0;
 }
 
 

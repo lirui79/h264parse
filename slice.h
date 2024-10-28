@@ -1,17 +1,14 @@
-//
-//  slice.h
-//  H264Analysis
-//
-//  Created by Jinmmer on 2018/5/18.
-//  Copyright © 2018年 Jinmmer. All rights reserved.
-//
-
-#ifndef slice_h
-#define slice_h
+#ifndef ___SLICE__H__
+#define ___SLICE__H__
 
 #include <stdio.h>
 #include "header.h"
 #include "nalutil.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     Slice_Type_P = 0,
@@ -28,10 +25,32 @@ typedef struct
     slice_header_t slice_header;
 } slice_t;
 
-void processSliceHeader(bs_t *b);
-void processSlice(bs_t *b);
+void processSlice(bs_t *b, sps_t *sps, pps_t *pps, slice_t *slice);
 
 slice_t *allocSlice(void); // 初始化slice结构体
+
 void freeSlice(slice_t *slice); // 释放slice
 
-#endif /* slice_h */
+
+
+void processSliceHeader(bs_t *b, sps_t *sps, pps_t *pps, slice_t *slice);
+
+void parse_first_three_element(bs_t *b, slice_header_t *slice_header);
+
+void parse_rest_elememt_of_sliceHeader(bs_t *b, sps_t *sps, pps_t *pps, slice_t *slice);
+
+void parse_ref_pic_list_modification(bs_t *b, slice_header_t *slice_header);
+
+void alloc_ref_pic_list_modification_buffer(slice_header_t *slice_header);
+
+void parse_pred_weight_table(bs_t *b, sps_t *sps, slice_header_t *slice_header);
+
+void parse_dec_ref_pic_marking(bs_t *b, slice_t *slice);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+
+#endif /* ___SLICE__H__ */
