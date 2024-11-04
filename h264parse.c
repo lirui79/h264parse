@@ -27,7 +27,7 @@ int main(int argc, const char * argv[]) {
     
     // 2.找到h264码流中的各个nalu
     while (1) {
-        startPos = FindNalu(buffer, bufSize, startPos, nalu);
+        startPos = FindNaluPos(buffer, bufSize, startPos, nalu);
         printf("nalu: %d, start: %d, size: %d\n", nalu_i, startPos, nalu->len);
         if (nalu->len <= 0)
             break;

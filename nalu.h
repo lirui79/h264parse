@@ -47,9 +47,9 @@ enum nal_unit_type {
 
 unsigned int FindStartCode(uint8_t *rawbs);
 
-unsigned int FindNaluPos(uint8_t *rawbs, unsigned int size, unsigned int startPos);
+unsigned int FindStartCodePos(uint8_t *rawbs, unsigned int size, unsigned int startPos);
 
-unsigned int FindNalu(uint8_t *rawbs, unsigned int size, unsigned int startPos, nalu_t *nalu);
+unsigned int FindNaluPos(uint8_t *rawbs, unsigned int size, unsigned int startPos, nalu_t *nalu);
 
 unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice);
 

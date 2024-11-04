@@ -5,7 +5,6 @@
 #include "parset.h"
 #include "slice.h"
 
-extern slice_t *currentSlice;
 
 /* 1. h264的起始码: 0x000001(3 Bytes)或0x00000001(4 Bytes);
  * 2. 文件流中用起始码来区分NALU.
@@ -27,7 +26,7 @@ unsigned int FindStartCode(uint8_t *rawbs) {
     return 0x04;
 }
 
-unsigned  int FindNaluPos(uint8_t *rawbs, unsigned int size, unsigned int startPos) {
+unsigned  int FindStartCodePos(uint8_t *rawbs, unsigned int size, unsigned int startPos) {
     while (startPos < size) {
         if (FindStartCode(rawbs + startPos) > 0) {
             break;
@@ -46,15 +45,19 @@ unsigned  int FindNaluPos(uint8_t *rawbs, unsigned int size, unsigned int startP
  * nalu  -  find nalu set buf and len
  * return  startPos
  */ 
-unsigned int FindNalu(uint8_t *rawbs, unsigned int size, unsigned int startPos, nalu_t *nalu) {
+unsigned int FindNaluPos(uint8_t *rawbs, unsigned int size, unsigned int startPos, nalu_t *nalu) {
     unsigned int endPos = 0, startCode = 3;
-    while (startPos < size) {
+    while (1) {
+        if (startPos >= size) {
+            nalu->buf = 0;
+            nalu->len = 0;
+            return startPos;
+        }
         startCode = FindStartCode(rawbs + startPos);
         if (startCode > 0) {
             break;
-        } else {
-            ++startPos;
         }
+        ++startPos;
     }
 
     endPos = startPos + 3;
@@ -191,10 +194,7 @@ unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice) {
     nalu->forbidden_zero_bit = bs_read_u(bs, 1);
     nalu->nal_ref_idc = bs_read_u(bs, 2);
     nalu->nal_unit_type = bs_read_u(bs, 5);
-    
-    printf("\tnal->forbidden_zero_bit: %d\n", nalu->forbidden_zero_bit);
-    printf("\tnal->nal_ref_idc: %d\n", nalu->nal_ref_idc);
-    printf("\tnal->nal_unit_type: %d\n", nalu->nal_unit_type);
+    printf("%02X forbidden_zero_bit:%d nal_ref_idc:%d nal_unit_type:%d\n", buffer[0], nalu->forbidden_zero_bit, nalu->nal_ref_idc, nalu->nal_unit_type);
 
     switch (nalu->nal_unit_type)
     {
@@ -202,12 +202,12 @@ unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice) {
             nalu->len = ConverRbspToSodb(nalu);
             processSPS(bs, sps);
             break;
-            
+
         case H264_NAL_PPS:
             nalu->len = ConverRbspToSodb(nalu);
             processPPS(bs, sps, pps);
             break;
-            
+
         case H264_NAL_SLICE:
         case H264_NAL_IDR_SLICE:
             slice->idr_flag = (nalu->nal_unit_type == H264_NAL_IDR_SLICE);
