@@ -1,7 +1,6 @@
 
 #include "nalu.h"
 #include <assert.h>
-#include "stream.h"
 #include "parset.h"
 #include "slice.h"
 
@@ -10,8 +9,8 @@
  * 2. 文件流中用起始码来区分NALU.
  * nal -  input data pointer
  * return  0x00  - no find startcode   0x03 - startcode 3 bytes  0x04 - startcode 4 bytes
- */ 
-unsigned int FindStartCode(uint8_t *rawbs) {
+ */
+unsigned int check_startcode(uint8_t *rawbs) {
     if ((0x00 != rawbs[0]) || (0x00 != rawbs[1])) {
         return 0x00;
     }
@@ -26,52 +25,58 @@ unsigned int FindStartCode(uint8_t *rawbs) {
     return 0x04;
 }
 
-unsigned  int FindStartCodePos(uint8_t *rawbs, unsigned int size, unsigned int startPos) {
-    while (startPos < size) {
-        if (FindStartCode(rawbs + startPos) > 0) {
+/* find h264 startcode position
+ * rawbs     -  input data pointer
+ * size      -  input data size
+ * startpos  -  input data offset
+ * return   startpos  startcode pos
+ */
+unsigned  int find_startcode(uint8_t *rawbs, unsigned int size, unsigned int startpos) {
+    while (startpos < size) {
+        if (check_startcode(rawbs + startpos) > 0) {
             break;
         } else {
-            ++startPos;
+            ++startpos;
         }
     }
-    return startPos;
+    return startpos;
 }
 
 /* find raw h264 bs data nal data size, not include startcode
  * 
  * rawbs -  input h264 bs data pointer
  * size  -  input h264 bs data size
- * startPos - find nal data start position
+ * startpos - find nal data start position
  * nalu  -  find nalu set buf and len
- * return  startPos
- */ 
-unsigned int FindNaluPos(uint8_t *rawbs, unsigned int size, unsigned int startPos, nalu_t *nalu) {
+ * return  startpos
+ */
+unsigned int find_nalu(uint8_t *rawbs, unsigned int size, unsigned int startpos, nalu_t *nalu) {
     unsigned int endPos = 0, startCode = 3;
     while (1) {
-        if (startPos >= size) {
+        if (startpos >= size) {
             nalu->buf = 0;
             nalu->len = 0;
-            return startPos;
+            return startpos;
         }
-        startCode = FindStartCode(rawbs + startPos);
+        startCode = check_startcode(rawbs + startpos);
         if (startCode > 0) {
             break;
         }
-        ++startPos;
+        ++startpos;
     }
 
-    endPos = startPos + 3;
+    endPos = startpos + 3;
     while (endPos < size) {
-        if (FindStartCode(rawbs + endPos) > 0) {
+        if (check_startcode(rawbs + endPos) > 0) {
             break;
         } else {
             ++endPos;
         }
     }
 
-    nalu->buf = rawbs + startPos + startCode;
-    nalu->len = (endPos - startPos - startCode);
-    return (startPos + startCode); // if file is end
+    nalu->buf = rawbs + startpos + startCode;
+    nalu->len = (endPos - startpos - startCode);
+    return (startpos + startCode); // if file is end
 }
 
 /**
@@ -80,7 +85,7 @@ unsigned int FindNaluPos(uint8_t *rawbs, unsigned int size, unsigned int startPo
  @see 7.4.1.1 Encapsulation of an SODB within an RBSP
  @return 返回去除0x03后nalu的大小
  */
-unsigned int ConverNaluToRbsp(const uint8_t *rawbs, unsigned int size, uint8_t* rbbuf, unsigned int* rbsize) {
+unsigned int emulation_prevention_three_byte(const uint8_t *rawbs, unsigned int size, uint8_t* rbbuf, unsigned int* rbsize) {
     // 遇到0x000003则把03去掉，包含以cabac_zero_word结尾时，尾部为0x000003的情况
     unsigned int i = 0, j = 0;
     for (i = 0; i < size; ) {
@@ -116,7 +121,7 @@ unsigned int ConverNaluToRbsp(const uint8_t *rawbs, unsigned int size, uint8_t* 
  计算SODB的长度
  【注】RBSP = SODB + trailing_bits
  */
-unsigned int ConverRbspToSodb(nalu_t *nalu)
+unsigned int rbsp_trailing_bits_size(nalu_t *nalu)
 {
     int ctr_bit, bitoffset, last_byte_pos;
     bitoffset = 0;
@@ -146,8 +151,7 @@ unsigned int ConverRbspToSodb(nalu_t *nalu)
  在rbsp_trailing_bits()之前是否有更多数据
  [h264协议文档位置]：7.2 Specification of syntax functions, categories, and descriptors
  */
-unsigned int MoreRbspData(bs_t *b) 
-{
+unsigned int more_rbsp_data(bs_t *b) {
     // 0.是否已读到末尾
     if (bs_eof(b)) {
         return 0;
@@ -178,13 +182,13 @@ unsigned int MoreRbspData(bs_t *b)
  @see 7.3.1 NAL unit syntax
  @see 7.4.1 NAL unit semantics
  */
-unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice) {
+unsigned int parse_nalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice) {
     uint8_t* buffer = NULL;
     unsigned int bufSize = nalu->len;
 
     buffer = malloc(bufSize);
     // 1.去除nalu中的emulation_prevention_three_byte：0x03
-    ConverNaluToRbsp(nalu->buf, nalu->len, buffer, &bufSize);
+    emulation_prevention_three_byte(nalu->buf, nalu->len, buffer, &bufSize);
     nalu->buf = buffer;
     nalu->len = bufSize;
     // 2.初始化逐比特读取工具句柄
@@ -196,15 +200,14 @@ unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice) {
     nalu->nal_unit_type = bs_read_u(bs, 5);
     printf("%02X forbidden_zero_bit:%d nal_ref_idc:%d nal_unit_type:%d\n", buffer[0], nalu->forbidden_zero_bit, nalu->nal_ref_idc, nalu->nal_unit_type);
 
-    switch (nalu->nal_unit_type)
-    {
+    switch (nalu->nal_unit_type) {
         case H264_NAL_SPS:
-            nalu->len = ConverRbspToSodb(nalu);
+            nalu->len = rbsp_trailing_bits_size(nalu);
             processSPS(bs, sps);
             break;
 
         case H264_NAL_PPS:
-            nalu->len = ConverRbspToSodb(nalu);
+            nalu->len = rbsp_trailing_bits_size(nalu);
             processPPS(bs, sps, pps);
             break;
 
@@ -212,20 +215,20 @@ unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice) {
         case H264_NAL_IDR_SLICE:
             slice->idr_flag = (nalu->nal_unit_type == H264_NAL_IDR_SLICE);
             slice->nal_ref_idc = nalu->nal_ref_idc;
-            nalu->len = ConverRbspToSodb(nalu);
+            nalu->len = rbsp_trailing_bits_size(nalu);
             processSlice(bs, sps, pps, slice);
             break;
             
         case H264_NAL_DPA:
-            nalu->len = ConverRbspToSodb(nalu);
+            nalu->len = rbsp_trailing_bits_size(nalu);
             break;
             
         case H264_NAL_DPB:
-            nalu->len = ConverRbspToSodb(nalu);
+            nalu->len = rbsp_trailing_bits_size(nalu);
             break;
             
         case H264_NAL_DPC:
-            nalu->len = ConverRbspToSodb(nalu);
+            nalu->len = rbsp_trailing_bits_size(nalu);
             break;
             
         default:
@@ -238,7 +241,7 @@ unsigned int ParseNalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice) {
 
 
 
-nalu_t *allocNalu() {
+nalu_t *alloc_nalu() {
     // calloc：初始化所分配的内存空间
     nalu_t *nalu = (nalu_t *)malloc(sizeof(nalu_t));
     if (nalu == NULL) {
@@ -249,6 +252,6 @@ nalu_t *allocNalu() {
     return nalu;
 }
 
-void freeNalu(nalu_t *nalu) {
+void free_nalu(nalu_t *nalu) {
     free(nalu);
 }

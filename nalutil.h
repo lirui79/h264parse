@@ -9,8 +9,7 @@
 extern "C" {
 #endif
 
-typedef struct
-{
+typedef struct {
 	uint8_t* start;
 	uint8_t* p;
 	uint8_t* end;
@@ -79,7 +78,7 @@ int bs_skip_bytes(bs_t* b, int len);
 
 uint32_t bs_next_bits(bs_t* b, int nbits);
 
-#define bs_print_state(b) fprintf( stderr,  "%s:%d@%s: b->p=0x%02hhX, b->left = %d\n", __FILE__, __LINE__, __FUNCTION__, *b->p, b->bits_left )
+uint64_t bs_next_bytes(bs_t* bs, int nbytes);
 
 #ifdef __cplusplus
 }

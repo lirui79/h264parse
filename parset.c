@@ -17,6 +17,7 @@ void parse_vui_hrd_parameters(bs_t *b, hrd_parameters_t *hrd);
  [h264协议文档位置]：7.3.2.1.1 Sequence parameter set data syntax
  */
 int processSPS(bs_t *b, sps_t *sps) {
+    int PicWidthInSamplesL = 0, PicHeightInSamplesL = 0;
     sps->profile_idc = bs_read_u(b, 8);
     sps->constraint_set0_flag = bs_read_u(b, 1);
     sps->constraint_set1_flag = bs_read_u(b, 1);
@@ -97,7 +98,11 @@ int processSPS(bs_t *b, sps_t *sps) {
         parse_vui_parameters(b, sps);
     }
 
-    printf("SPS->pic_width_in_mbs_minus1: %d\n", sps->pic_width_in_mbs_minus1);
+    printf("crop(%d %d %d %d)\n", sps->frame_crop_left_offset, sps->frame_crop_right_offset, sps->frame_crop_top_offset, sps->frame_crop_bottom_offset);
+
+    PicWidthInSamplesL = 16 * (sps->pic_width_in_mbs_minus1 + 1);
+    PicHeightInSamplesL =  16 * (sps->pic_height_in_map_units_minus1 + 1);
+    printf("pic_width_in_mbs_minus1:%d pic_height_in_map_units_minus1:%d %d %d\n", sps->pic_width_in_mbs_minus1, sps->pic_height_in_map_units_minus1, PicWidthInSamplesL, PicHeightInSamplesL);
     return 0;
 }
 
@@ -294,7 +299,7 @@ int  processPPS(bs_t *b, sps_t *sps, pps_t *pps) {
     pps->redundant_pic_cnt_present_flag = bs_read_u(b, 1);
     
     // 如果有更多rbsp数据
-    if (MoreRbspData(b)) {
+    if (more_rbsp_data(b)) {
         pps->transform_8x8_mode_flag = bs_read_u(b, 1);
         pps->pic_scaling_matrix_present_flag = bs_read_u(b, 1);
         if (pps->pic_scaling_matrix_present_flag) {
