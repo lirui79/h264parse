@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "nalutil.h"
-#include "slice.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -158,7 +158,7 @@ unsigned int find_startcode(uint8_t *rawbs, unsigned int size, unsigned int star
  */
 unsigned int find_nalu(uint8_t *rawbs, unsigned int size, unsigned int startpos, nalu_t *nalu);
 
-unsigned int parse_nalu(nalu_t *nalu, sps_t *sps, pps_t *pps, slice_t *slice);
+
 
 /**
  去除rbsp中的0x03
@@ -177,9 +177,6 @@ unsigned int rbsp_trailing_bits_size(nalu_t *nalu);
 // 在rbsp_trailing_bits()之前是否有更多数据
 unsigned int more_rbsp_data(bs_t *b);
 
-nalu_t *alloc_nalu();
-
-void free_nalu(nalu_t *nalu);
 
 #ifdef __cplusplus
 }
